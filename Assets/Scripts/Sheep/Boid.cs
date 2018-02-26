@@ -5,25 +5,39 @@ using UnityEngine;
 public class Boid : MonoBehaviour
 {
 
-    private List<GameObject> flock = new List<GameObject>();
+    private GameObject[] flock;
     private Vector3 directionVector;
 
-    public float speed = 1.0f;
-    public int separationMinimumDistance;
+    public float speed;
+    public int separationDistance;
+    public int neighbourRadius;
+    public bool isDebugging;
 
+    void Start()
+    {
+        flock = GameObject.FindGameObjectsWithTag("Boid");
+        directionVector = Vector3.zero;
+    }
     void Update()
     {
-        foreach (GameObject obj in flock)
+        Vector3 v1 = Cohesion();
+        Vector3 v2 = Separation();
+        Vector3 v3 = Alignment();
+
+        if (isDebugging)
         {
-            if (obj == null)
-                flock.Remove(obj);
+            Debug.DrawRay(transform.position, v1, Color.red);
+            Debug.DrawRay(transform.position, v2, Color.blue);
+            Debug.DrawRay(transform.position, v3, Color.green);
         }
 
-        directionVector = Separation() + Alignment() + Cohesion();
+        directionVector = v1 + v2 + v3;
 
         //transform.rotation = Quaternion.LookRotation(velocity.normalized);
 
-        transform.position += new Vector3(directionVector.normalized.x, 0, directionVector.normalized.y) * speed * Time.deltaTime;
+        directionVector.Normalize();
+        
+        transform.position += new Vector3(directionVector.x, 0, directionVector.y) * speed * Time.deltaTime;
     }
 
     // cohesion: steer to move toward the average position (center of mass) of local flockmates
@@ -34,33 +48,40 @@ public class Boid : MonoBehaviour
 
         foreach (GameObject boid in flock)
         {
-            if (boid != this)
+            if (boid != gameObject)
             {
-                percievedCenter += boid.transform.position;
+                float distance = Vector3.Distance(transform.position, boid.transform.position);
+                if(distance > 0 && distance < neighbourRadius)
+                    percievedCenter += boid.transform.position;
             }
         }
 
         //Averaging positions while taking into acc the boid calling this
-        percievedCenter /= (flock.Count - 1);
+        percievedCenter = percievedCenter / (flock.Length);
 
         //Dividing by 100 gives the amount to move by 1% in the given direction
-        return (percievedCenter - gameObject.transform.position) / 100;
+        return (percievedCenter - gameObject.transform.position);
     }
 
     // separation: steer to avoid crowding local flockmates
     Vector3 Separation()
     {
         Vector3 resultVector = Vector3.zero;
+        int count = 0;
         foreach (GameObject boid in flock)
         {
-            if (boid != gameObject)
-            {
-                if (Vector3.Magnitude(boid.transform.position - gameObject.transform.position) < separationMinimumDistance)
-                {
-                    resultVector -= (boid.transform.position - gameObject.transform.position);
-                }
-            }
+                //if (Vector3.Magnitude(boid.transform.position - gameObject.transform.position) < separationMinimumDistance)
+                //{
+                //    resultVector -= (boid.transform.position - gameObject.transform.position);
+                //}
+                float distance = Vector3.Distance(gameObject.transform.position, boid.transform.position);
+                if (distance > 0 && distance < separationDistance)
+                    resultVector += (gameObject.transform.position - boid.transform.position);
+                count++;
         }
+        //if (count > 0)
+        //    resultVector /= count;
+        
         return resultVector;
     }
 
@@ -74,26 +95,29 @@ public class Boid : MonoBehaviour
         {
             if (boid != this)
             {
-                percievedVelocity += boid.transform.TransformDirection(boid.transform.forward);
+                float distance = Vector3.Distance(transform.position, boid.transform.position);
+                if (distance > 0 && distance < neighbourRadius)
+                    percievedVelocity += boid.transform.TransformDirection(boid.transform.forward);
             }
         }
 
         //Averaging velocities while taking into acc the boid calling this
-        percievedVelocity /= (flock.Count - 1);
+        percievedVelocity /= (flock.Length - 1);
 
         //Adding only an eighth to boid's velocity
-        return (percievedVelocity - gameObject.transform.position) / 8;
-    }
-    
-    void OnTriggerEnter(Collider otherCollider)
-    {
-        if(otherCollider.tag == "Boid")
-            flock.Add(otherCollider.gameObject);
+        return (percievedVelocity - gameObject.transform.position);
     }
 
-    void OnTriggerExit(Collider otherCollider)
-    {
-        flock.Remove(otherCollider.gameObject);
-    }
+    //void OnTriggerEnter(Collider otherCollider)
+    //{
+    //    if (otherCollider.tag == "Boid")
+    //        flock.Add(otherCollider.gameObject);
+    //}
+
+    //void OnTriggerExit(Collider otherCollider)
+    //{
+    //    if(otherCollider.tag == "Boid")
+    //        flock.Remove(otherCollider.gameObject);
+    //}
 }
 
