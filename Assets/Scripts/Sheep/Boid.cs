@@ -21,7 +21,7 @@ public class Boid : MonoBehaviour
 
     void Start()
     {
-        flock = GameObject.FindGameObjectsWithTag("Boid");
+        flock = FlockManager.allBoids;
         directionVector = Vector3.zero;
         rb = gameObject.GetComponent<Rigidbody>();
         objective = GameObject.FindGameObjectWithTag("Objective");
@@ -40,7 +40,7 @@ public class Boid : MonoBehaviour
             Debug.DrawRay(transform.position, alignment, Color.green);
         }
 
-        directionVector = (cohesion * cohesionWeight) + (separation * sepWeight) + (alignment * alignWeight) + tending;
+        directionVector = ( (cohesion * cohesionWeight) + (separation * sepWeight) + (alignment * alignWeight) );
         directionVector.Normalize();
 
         transform.rotation = Quaternion.LookRotation(new Vector3(directionVector.x, 0, directionVector.z));
@@ -70,9 +70,9 @@ public class Boid : MonoBehaviour
 
         if (count == 0)
         {
-            return percievedCenter;
+            return percievedCenter + (TendToPlace() - transform.position);
         }
-        percievedCenter = percievedCenter / count;
+        percievedCenter = percievedCenter / count + (TendToPlace() - transform.position);
         return (percievedCenter);
     }
 
