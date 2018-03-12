@@ -1,13 +1,14 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class Boid : MonoBehaviour
 {
 
     private GameObject[] flock;
     private Vector3 directionVector;
+    private Vector3 sightLine;
     private Rigidbody rb;
+    private const int MAX_SEE_AHEAD = 4;
+    private const int MAX_AVOID_FORCE = 100;
 
     public float speed;
     public int separationDistance;
@@ -16,36 +17,64 @@ public class Boid : MonoBehaviour
     public float alignWeight;
     public float sepWeight;
     public float cohesionWeight;
-    private GameObject objective;
-
 
     void Start()
     {
         flock = FlockManager.allBoids;
         directionVector = Vector3.zero;
         rb = gameObject.GetComponent<Rigidbody>();
-        objective = GameObject.FindGameObjectWithTag("Objective");
     }
+
     void Update()
     {
         Vector3 cohesion = Cohesion();
         Vector3 separation = Separation();
         Vector3 alignment = Alignment();
-        Vector3 tending = TendToPlace();
-
-        if (isDebugging)
-        {
-            Debug.DrawRay(new Vector3(0f, 0f, 0f), cohesion, Color.red);
-            Debug.DrawRay(transform.position, separation, Color.blue);
-            Debug.DrawRay(transform.position, alignment, Color.green);
-        }
-
-        directionVector = ( (cohesion * cohesionWeight) + (separation * sepWeight) + (alignment * alignWeight) );
+        Vector3 avoidance = Avoidance();
+        sightLine = transform.position + directionVector * MAX_SEE_AHEAD;
+        directionVector = ( (cohesion * cohesionWeight) + (separation * sepWeight) + (alignment * alignWeight) + avoidance);
         directionVector.Normalize();
+        
 
         transform.rotation = Quaternion.LookRotation(new Vector3(directionVector.x, 0, directionVector.z));
 
         rb.velocity = (new Vector3(directionVector.x, 0, directionVector.z) * speed);
+
+        if (isDebugging)
+        {
+            //Debug.DrawRay(new Vector3(0f, 0f, 0f), cohesion, Color.red); // Cohesion
+            //Debug.DrawRay(transform.position, separation, Color.blue); // Separation
+            //Debug.DrawRay(transform.position, alignment, Color.green); // Alignment
+            Debug.DrawRay(transform.position, sightLine, Color.yellow); // Sightline
+            Debug.DrawRay(sightLine, avoidance, Color.cyan); // Avoidance force
+        }
+    }
+
+    //Determines if boid is about to encounter object, then calculates appropriate avoidance force
+    public Vector3 Avoidance()
+    {
+        Vector3 avoidanceForce =  new Vector3();
+        RaycastHit hit;
+        RaycastHit[] hits;
+
+        //Get all objects in sightline
+        hits = Physics.RaycastAll(transform.position, sightLine, Vector3.Magnitude(sightLine));
+        Debug.Log(hits.Length);
+        if (hits[0].transform != FlockManager.goalTransform && hits != null)
+        {
+            if (Physics.Raycast(transform.position, sightLine, out hit, Vector3.Magnitude(sightLine)))
+            {
+                avoidanceForce = sightLine - hit.point;
+                avoidanceForce = Vector3.Normalize(avoidanceForce) * MAX_AVOID_FORCE;
+            }
+        }
+
+        else
+        {
+            avoidanceForce *= 0;
+        }
+
+        return avoidanceForce;
     }
 
     // cohesion: steer to move toward the average position (center of mass) of local flockmates
@@ -63,7 +92,6 @@ public class Boid : MonoBehaviour
                 {
                     percievedCenter += boid.transform.position;
                     count++;
-                    
                 }
             }
         }
@@ -134,7 +162,7 @@ public class Boid : MonoBehaviour
 
     Vector3 TendToPlace()
     {
-        Vector3 place = objective.transform.position;
+        Vector3 place = FlockManager.goalTransform.position;
 
         return(place - gameObject.transform.position);
     }

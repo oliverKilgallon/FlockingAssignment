@@ -4,6 +4,9 @@ public class FlockManager : MonoBehaviour
 {
 
     public GameObject boidPrefab;
+    public GameObject goal;
+
+    public static Transform goalTransform;
     public static int fieldSize = 10;
 
     static int numBoids = 7;
@@ -12,6 +15,7 @@ public class FlockManager : MonoBehaviour
 	// Use this for initialization
 	void Start ()
     {
+        goalTransform = goal.transform;
         for (int i = 0; i < numBoids; i++)
         {
             Vector3 pos = new Vector3(Random.Range(-fieldSize, fieldSize),
@@ -21,4 +25,9 @@ public class FlockManager : MonoBehaviour
             allBoids[i] = Instantiate(boidPrefab, pos, Quaternion.identity);
         }
 	}
+
+    void Update()
+    {
+        goalTransform = goal.transform;
+    }
 }
