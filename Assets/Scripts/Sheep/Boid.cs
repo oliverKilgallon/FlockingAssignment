@@ -14,15 +14,18 @@ public class Boid : MonoBehaviour
     public int separationDistance;
     public int neighbourRadius;
     public bool isDebugging;
+    private bool isAvoiding;
     public float alignWeight;
     public float sepWeight;
     public float cohesionWeight;
+    public float raycastDistance = 5f;
 
     void Start()
     {
         flock = FlockManager.allBoids;
         directionVector = Vector3.zero;
         rb = gameObject.GetComponent<Rigidbody>();
+        sightLine = transform.position + transform.forward * MAX_SEE_AHEAD;
     }
 
     void Update()
@@ -30,51 +33,84 @@ public class Boid : MonoBehaviour
         Vector3 cohesion = Cohesion();
         Vector3 separation = Separation();
         Vector3 alignment = Alignment();
-        Vector3 avoidance = Avoidance();
-        sightLine = transform.position + directionVector * MAX_SEE_AHEAD;
-        directionVector = ( (cohesion * cohesionWeight) + (separation * sepWeight) + (alignment * alignWeight) + avoidance);
-        directionVector.Normalize();
-        
 
-        transform.rotation = Quaternion.LookRotation(new Vector3(directionVector.x, 0, directionVector.z));
+        //Don't calculate vectors if close to objective
+        if (!(Vector3.Distance(transform.position, FlockManager.goalTransform.position) < 5))
+        {
+            sightLine = transform.position.normalized + directionVector.normalized * MAX_SEE_AHEAD;
+            if (!Avoidance())
+            {
+                directionVector = ((cohesion * cohesionWeight) + (separation * sepWeight) + (alignment * alignWeight));
+                directionVector.Normalize();
 
-        rb.velocity = (new Vector3(directionVector.x, 0, directionVector.z) * speed);
+                //Set boid velocity according to direction vector
+                rb.velocity = (new Vector3(directionVector.x, 0, directionVector.z) * speed);
 
+                //Set rotation 
+                transform.rotation = Quaternion.LookRotation(new Vector3(directionVector.x, 0, directionVector.z));
+            }
+            else
+            {
+                directionVector = (FlockManager.goalTransform.position - transform.position).normalized;
+                RaycastHit hit;
+                float shoulderMultiplier = 0.5f;
+
+                Vector3 leftRay = transform.position - (transform.right * shoulderMultiplier);
+                Vector3 rightRay = transform.position + (transform.right * shoulderMultiplier);
+
+                if (Physics.Raycast(leftRay, transform.forward, out hit, raycastDistance) || Physics.Raycast(rightRay, transform.forward, out hit, raycastDistance))
+                {
+                    if (hit.transform != transform)
+                    {
+                        Debug.DrawLine(leftRay, hit.point, Color.red);
+                        directionVector += hit.normal * raycastDistance;
+                    }
+                }
+
+                //else if (Physics.Raycast(rightRay, transform.forward, out hit, 10f))
+                //{
+                //    if (hit.transform != transform)
+                //    {
+                //        Debug.DrawLine(rightRay, hit.point, Color.red);
+                //        directionVector += hit.normal * 10f;
+                //    }
+                //}
+
+                directionVector += separation;
+
+                Quaternion lookRot = Quaternion.LookRotation(directionVector);
+                transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, 2.5f * Time.deltaTime);
+
+                rb.velocity = transform.forward * speed;
+            }
+        }
+
+        //Set boid to show specific vectors
         if (isDebugging)
         {
             //Debug.DrawRay(new Vector3(0f, 0f, 0f), cohesion, Color.red); // Cohesion
             //Debug.DrawRay(transform.position, separation, Color.blue); // Separation
             //Debug.DrawRay(transform.position, alignment, Color.green); // Alignment
-            Debug.DrawRay(transform.position, sightLine, Color.yellow); // Sightline
-            Debug.DrawRay(sightLine, avoidance, Color.cyan); // Avoidance force
+            //Debug.DrawRay(transform.position, sightLine, Color.yellow); // Sightline
+            //Debug.DrawRay(sightLine, avoidance, Color.cyan); // Avoidance force
         }
     }
 
     //Determines if boid is about to encounter object, then calculates appropriate avoidance force
-    public Vector3 Avoidance()
+    public bool Avoidance()
     {
-        Vector3 avoidanceForce =  new Vector3();
         RaycastHit hit;
-        RaycastHit[] hits;
 
-        //Get all objects in sightline
-        hits = Physics.RaycastAll(transform.position, sightLine, Vector3.Magnitude(sightLine));
-        Debug.Log(hits.Length);
-        if (hits[0].transform != FlockManager.goalTransform && hits != null)
-        {
-            if (Physics.Raycast(transform.position, sightLine, out hit, Vector3.Magnitude(sightLine)))
-            {
-                avoidanceForce = sightLine - hit.point;
-                avoidanceForce = Vector3.Normalize(avoidanceForce) * MAX_AVOID_FORCE;
-            }
-        }
+        float shoulderMultiplier = 0.5f;
 
-        else
-        {
-            avoidanceForce *= 0;
-        }
+        Vector3 leftRay = transform.position - (transform.right * shoulderMultiplier);
+        Vector3 rightRay = transform.position + (transform.right * shoulderMultiplier);
 
-        return avoidanceForce;
+        bool leftRayHit = Physics.Raycast(leftRay, transform.forward, out hit, raycastDistance);
+        bool rightRayHit = Physics.Raycast(rightRay, transform.forward, out hit, raycastDistance);
+        bool centre = Physics.Raycast(transform.position, transform.forward, raycastDistance);
+
+        return (leftRayHit || centre) || rightRayHit;
     }
 
     // cohesion: steer to move toward the average position (center of mass) of local flockmates
