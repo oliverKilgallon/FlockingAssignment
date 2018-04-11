@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class SheepCounter : MonoBehaviour {
 
-    private void OnCollisionEnter(Collision other)
+    private void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.CompareTag("Boid"))
         {
@@ -13,7 +13,7 @@ public class SheepCounter : MonoBehaviour {
         }
     }
 
-    private void OnCollisionExit(Collision other)
+    private void OnTriggerExit(Collider other)
     {
         if (other.gameObject.CompareTag("Boid"))
         {

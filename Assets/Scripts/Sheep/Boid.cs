@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using UnityEngine;
 
 public class Boid : MonoBehaviour
 {
@@ -12,6 +13,7 @@ public class Boid : MonoBehaviour
     public int separationDistance;
     public int neighbourRadius;
     public bool isDebugging;
+    public bool isHerded;
     public float speed;
     public float alignWeight;
     public float sepWeight;
@@ -24,6 +26,7 @@ public class Boid : MonoBehaviour
         flock = FlockManager.allBoids;
         directionVector = Vector3.zero;
         rb = gameObject.GetComponent<Rigidbody>();
+        GetComponent<MeshRenderer>().material.color = Color.green;
     }
 
     void Update()
@@ -31,85 +34,71 @@ public class Boid : MonoBehaviour
         Movement();
     }
 
+    //Main body of vector calculations are here
     public void Movement()
     {
-        //Don't calculate vectors if close to objective
-        if ((Vector3.Distance(transform.position, FlockManager.goalTransform.position) < minPlayerDist))
+        //Don't calculate vectors if far enough away from player
+        if ( ( Vector3.Distance( transform.position, FlockManager.goalTransform.position ) < minPlayerDist ) && isHerded )
         {
             Vector3 cohesion = Cohesion();
             Vector3 separation = Separation();
             Vector3 alignment = Alignment();
 
-            directionVector = ((cohesion * cohesionWeight) + (separation * sepWeight) + (alignment * alignWeight));
+            //Combine previously calculated vectors, multiply them by their respective weights then normalize the vector
+            directionVector = ( (cohesion * cohesionWeight ) + ( separation * sepWeight ) + ( alignment * alignWeight ) );
             directionVector.Normalize();
 
             //Set boid velocity according to direction vector
-            rb.velocity = (new Vector3(directionVector.x, 0, directionVector.z) * speed);
+            rb.velocity = ( new Vector3( directionVector.x, 0, directionVector.z ) * speed);
 
+            //Setup raycast properties
             RaycastHit hit;
             float shoulderMultiplier = 0.5f;
+            Vector3 leftRay = transform.position - ( transform.right * shoulderMultiplier );
+            Vector3 rightRay = transform.position + ( transform.right * shoulderMultiplier );
 
-            Vector3 leftRay = transform.position - (transform.right * shoulderMultiplier);
-            Vector3 rightRay = transform.position + (transform.right * shoulderMultiplier);
-
-            if (Physics.Raycast(leftRay, transform.forward, out hit, raycastDistance))
+            //Left shoulder raycast
+            if ( Physics.Raycast( leftRay, transform.forward, out hit, raycastDistance ) )
             {
-                if (hit.transform != transform)
+                if ( hit.transform != transform && !hit.collider.gameObject.CompareTag( "Safe" ) )
                 {
                     Debug.DrawLine(leftRay, hit.point, Color.red);
                     directionVector += hit.normal * 15.0f;
                 }
             }
 
-            else if (Physics.Raycast(rightRay, transform.forward, out hit, raycastDistance))
+            //Right shoulder raycast
+            else if ( Physics.Raycast( rightRay, transform.forward, out hit, raycastDistance ) )
             {
-                if (hit.transform != transform)
+                if ( hit.transform != transform && !hit.collider.gameObject.CompareTag( "Safe" ) )
                 {
-                    Debug.DrawLine(leftRay, hit.point, Color.red);
+                    Debug.DrawLine( leftRay, hit.point, Color.red );
                     directionVector += hit.normal * 15.0f;
                 }
             }
+
+            //Show both when not "colliding"
             else
             {
-                Debug.DrawRay(leftRay, transform.forward * raycastDistance, Color.yellow);
-                Debug.DrawRay(rightRay, transform.forward * raycastDistance, Color.yellow);
+                Debug.DrawRay( leftRay, transform.forward * raycastDistance, Color.yellow );
+                Debug.DrawRay( rightRay, transform.forward * raycastDistance, Color.yellow );
             }
 
             //directionVector += separation;
 
-            Quaternion lookRot = Quaternion.LookRotation(directionVector);
+            Quaternion lookRot = Quaternion.LookRotation( directionVector );
             transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, 2.5f * Time.deltaTime);
 
             rb.velocity = transform.forward * speed;
 
             //Set boid to show specific vectors
-            if (isDebugging)
+            if ( isDebugging )
             {
-                Debug.DrawRay(new Vector3(0f, 0f, 0f), cohesion, Color.red); // Cohesion
-                Debug.DrawRay(transform.position, separation, Color.blue); // Separation
-                Debug.DrawRay(transform.position, alignment, Color.green); // Alignment
+                Debug.DrawRay( new Vector3(0f, 0f, 0f), cohesion, Color.red ); // Cohesion
+                Debug.DrawRay( transform.position, separation, Color.blue ); // Separation
+                Debug.DrawRay( transform.position, alignment, Color.green ); // Alignment
             }
         }
-
-
-        
-    }
-
-    //Determines if boid is about to encounter object, then calculates appropriate avoidance force
-    public bool Avoidance()
-    {
-        RaycastHit hit;
-
-        float shoulderMultiplier = 0.5f;
-
-        Vector3 leftRay = transform.position - (transform.right * shoulderMultiplier);
-        Vector3 rightRay = transform.position + (transform.right * shoulderMultiplier);
-
-        bool leftRayHit = Physics.Raycast(leftRay, transform.forward, out hit, raycastDistance);
-        bool rightRayHit = Physics.Raycast(rightRay, transform.forward, out hit, raycastDistance);
-        bool centre = Physics.Raycast(transform.position, transform.forward, raycastDistance);
-
-        return (leftRayHit || centre) || rightRayHit;
     }
 
     // cohesion: steer to move toward the average position (center of mass) of local flockmates
@@ -118,12 +107,12 @@ public class Boid : MonoBehaviour
         //Want percieved rather than actual as boid is not considering itself
         Vector3 percievedCenter = Vector3.zero;
         int count = 0;
-        foreach (GameObject boid in flock)
+        foreach ( GameObject boid in flock )
         {
-            if (boid != gameObject)
+            if ( boid != gameObject )
             {
                 float distance = Vector3.Distance(transform.position, boid.transform.position);
-                if (distance > 0 && distance < neighbourRadius)
+                if ( distance > 0 && distance < neighbourRadius )
                 {
                     percievedCenter += boid.transform.position;
                     count++;
@@ -131,12 +120,12 @@ public class Boid : MonoBehaviour
             }
         }
 
-        if (count == 0)
+        if ( count == 0 )
         {
             return percievedCenter + (TendToPlace() - transform.position);
         }
         percievedCenter = percievedCenter / count + (TendToPlace() - transform.position);
-        return (percievedCenter);
+        return ( percievedCenter );
     }
 
     // separation: steer to avoid crowding local flockmates
@@ -195,11 +184,27 @@ public class Boid : MonoBehaviour
         return percievedVelocity;
     }
 
+    //Goal seek but reversed to give herding effect
     Vector3 TendToPlace()
     {
         Vector3 place = FlockManager.goalTransform.position;
 
-        return(place - gameObject.transform.position) * -1;
+        return( place - transform.position ) * -1;
+    }
+
+    //Only called when facing player in sheep's FOV
+    public void BarkedAt()
+    {
+        transform.rotation = Quaternion.LookRotation( -transform.forward, Vector3.up );
+        StartCoroutine( ColourBriefly() );
+    }
+
+    //Flash to indicate the sheep was "scared"
+    private IEnumerator ColourBriefly()
+    {
+        GetComponent<MeshRenderer>().material.color = Color.red;
+        yield return new WaitForSeconds(0.2f);
+        GetComponent<MeshRenderer>().material.color = Color.green;
     }
 }
 
