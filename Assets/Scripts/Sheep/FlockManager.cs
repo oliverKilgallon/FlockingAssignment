@@ -8,6 +8,7 @@ public class FlockManager : MonoBehaviour
 
     public static Transform goalTransform;
     public static int fieldSize = 10;
+    public static int sheepInField;
 
     static int numBoids = 7;
     public static GameObject[] allBoids = new GameObject[numBoids];
@@ -15,6 +16,7 @@ public class FlockManager : MonoBehaviour
 	// Use this for initialization
 	void Start ()
     {
+        sheepInField = 0;
         goalTransform = goal.transform;
         for (int i = 0; i < numBoids; i++)
         {

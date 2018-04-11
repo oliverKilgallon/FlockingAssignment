@@ -7,93 +7,92 @@ public class Boid : MonoBehaviour
     private Vector3 directionVector;
     private Vector3 sightLine;
     private Rigidbody rb;
-    private const int MAX_SEE_AHEAD = 4;
-    private const int MAX_AVOID_FORCE = 100;
+    private bool isAvoiding;
 
-    public float speed;
     public int separationDistance;
     public int neighbourRadius;
     public bool isDebugging;
-    private bool isAvoiding;
+    public float speed;
     public float alignWeight;
     public float sepWeight;
     public float cohesionWeight;
     public float raycastDistance = 5f;
+    public float minPlayerDist = 15f;
 
     void Start()
     {
         flock = FlockManager.allBoids;
         directionVector = Vector3.zero;
         rb = gameObject.GetComponent<Rigidbody>();
-        sightLine = transform.position + transform.forward * MAX_SEE_AHEAD;
     }
 
     void Update()
     {
-        Vector3 cohesion = Cohesion();
-        Vector3 separation = Separation();
-        Vector3 alignment = Alignment();
+        Movement();
+    }
 
+    public void Movement()
+    {
         //Don't calculate vectors if close to objective
-        if (!(Vector3.Distance(transform.position, FlockManager.goalTransform.position) < 5))
+        if ((Vector3.Distance(transform.position, FlockManager.goalTransform.position) < minPlayerDist))
         {
-            sightLine = transform.position.normalized + directionVector.normalized * MAX_SEE_AHEAD;
-            if (!Avoidance())
+            Vector3 cohesion = Cohesion();
+            Vector3 separation = Separation();
+            Vector3 alignment = Alignment();
+
+            directionVector = ((cohesion * cohesionWeight) + (separation * sepWeight) + (alignment * alignWeight));
+            directionVector.Normalize();
+
+            //Set boid velocity according to direction vector
+            rb.velocity = (new Vector3(directionVector.x, 0, directionVector.z) * speed);
+
+            RaycastHit hit;
+            float shoulderMultiplier = 0.5f;
+
+            Vector3 leftRay = transform.position - (transform.right * shoulderMultiplier);
+            Vector3 rightRay = transform.position + (transform.right * shoulderMultiplier);
+
+            if (Physics.Raycast(leftRay, transform.forward, out hit, raycastDistance))
             {
-                directionVector = ((cohesion * cohesionWeight) + (separation * sepWeight) + (alignment * alignWeight));
-                directionVector.Normalize();
+                if (hit.transform != transform)
+                {
+                    Debug.DrawLine(leftRay, hit.point, Color.red);
+                    directionVector += hit.normal * 15.0f;
+                }
+            }
 
-                //Set boid velocity according to direction vector
-                rb.velocity = (new Vector3(directionVector.x, 0, directionVector.z) * speed);
-
-                //Set rotation 
-                transform.rotation = Quaternion.LookRotation(new Vector3(directionVector.x, 0, directionVector.z));
+            else if (Physics.Raycast(rightRay, transform.forward, out hit, raycastDistance))
+            {
+                if (hit.transform != transform)
+                {
+                    Debug.DrawLine(leftRay, hit.point, Color.red);
+                    directionVector += hit.normal * 15.0f;
+                }
             }
             else
             {
-                directionVector = (FlockManager.goalTransform.position - transform.position).normalized;
-                RaycastHit hit;
-                float shoulderMultiplier = 0.5f;
+                Debug.DrawRay(leftRay, transform.forward * raycastDistance, Color.yellow);
+                Debug.DrawRay(rightRay, transform.forward * raycastDistance, Color.yellow);
+            }
 
-                Vector3 leftRay = transform.position - (transform.right * shoulderMultiplier);
-                Vector3 rightRay = transform.position + (transform.right * shoulderMultiplier);
+            //directionVector += separation;
 
-                if (Physics.Raycast(leftRay, transform.forward, out hit, raycastDistance) || Physics.Raycast(rightRay, transform.forward, out hit, raycastDistance))
-                {
-                    if (hit.transform != transform)
-                    {
-                        Debug.DrawLine(leftRay, hit.point, Color.red);
-                        directionVector += hit.normal * raycastDistance;
-                    }
-                }
+            Quaternion lookRot = Quaternion.LookRotation(directionVector);
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, 2.5f * Time.deltaTime);
 
-                //else if (Physics.Raycast(rightRay, transform.forward, out hit, 10f))
-                //{
-                //    if (hit.transform != transform)
-                //    {
-                //        Debug.DrawLine(rightRay, hit.point, Color.red);
-                //        directionVector += hit.normal * 10f;
-                //    }
-                //}
+            rb.velocity = transform.forward * speed;
 
-                directionVector += separation;
-
-                Quaternion lookRot = Quaternion.LookRotation(directionVector);
-                transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, 2.5f * Time.deltaTime);
-
-                rb.velocity = transform.forward * speed;
+            //Set boid to show specific vectors
+            if (isDebugging)
+            {
+                Debug.DrawRay(new Vector3(0f, 0f, 0f), cohesion, Color.red); // Cohesion
+                Debug.DrawRay(transform.position, separation, Color.blue); // Separation
+                Debug.DrawRay(transform.position, alignment, Color.green); // Alignment
             }
         }
 
-        //Set boid to show specific vectors
-        if (isDebugging)
-        {
-            //Debug.DrawRay(new Vector3(0f, 0f, 0f), cohesion, Color.red); // Cohesion
-            //Debug.DrawRay(transform.position, separation, Color.blue); // Separation
-            //Debug.DrawRay(transform.position, alignment, Color.green); // Alignment
-            //Debug.DrawRay(transform.position, sightLine, Color.yellow); // Sightline
-            //Debug.DrawRay(sightLine, avoidance, Color.cyan); // Avoidance force
-        }
+
+        
     }
 
     //Determines if boid is about to encounter object, then calculates appropriate avoidance force
@@ -200,7 +199,7 @@ public class Boid : MonoBehaviour
     {
         Vector3 place = FlockManager.goalTransform.position;
 
-        return(place - gameObject.transform.position);
+        return(place - gameObject.transform.position) * -1;
     }
 }
 
