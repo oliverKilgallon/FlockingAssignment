@@ -13,5 +13,10 @@ public class PlayerFollow : MonoBehaviour {
         {
             transform.position += new Vector3(playerDist.x / 15.0f, 0, playerDist.y / 15.0f);
         }
+
+        Vector3 newRotation = transform.eulerAngles;
+        newRotation.y = FlockManager.goalTransform.eulerAngles.y;
+        transform.eulerAngles = newRotation;
+        
 	}
 }

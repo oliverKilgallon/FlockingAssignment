@@ -17,15 +17,26 @@ public class FlockManager : MonoBehaviour
 	void Start ()
     {
         goalTransform = goal.transform;
-        sheepInField = 0;
+        sheepInField = numBoids;
         goalTransform = goal.transform;
         for (int i = 0; i < numBoids; i++)
         {
-            Vector3 pos = new Vector3(Random.Range(-fieldSize, fieldSize),
+            Vector3 pos = new Vector3(RandomFloat(Random.Range(-34, -14), Random.Range(4, 34)),
                                       0.5f,
-                                      Random.Range(-fieldSize, fieldSize));
+                                      RandomFloat(Random.Range(-20, 10), Random.Range(30, 50)));
 
             allBoids[i] = Instantiate(boidPrefab, pos, Quaternion.identity);
         }
+    }
+
+    private float RandomFloat(float lower, float higher)
+    {
+        float decider = Random.Range(0, 2);
+        if (decider == 0)
+            return lower;
+        else if(decider == 1)
+            return higher;
+
+        return lower;
     }
 }

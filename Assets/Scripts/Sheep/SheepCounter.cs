@@ -9,7 +9,6 @@ public class SheepCounter : MonoBehaviour {
         if (other.gameObject.CompareTag("Boid"))
         {
             FlockManager.sheepInField++;
-            Debug.Log(FlockManager.sheepInField + " Sheep");
             StartCoroutine(other.GetComponent<Boid>().PenEntered());
         }
     }
