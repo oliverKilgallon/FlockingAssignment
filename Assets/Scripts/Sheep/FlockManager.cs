@@ -5,12 +5,13 @@ public class FlockManager : MonoBehaviour
 
     public GameObject boidPrefab;
     public GameObject goal;
+    public GameObject gate;
 
     public static Transform goalTransform;
     public static int fieldSize = 10;
     public static int sheepInField;
 
-    static int numBoids = 7;
+    public static int numBoids = 7;
     public static GameObject[] allBoids = new GameObject[numBoids];
 
 	// Use this for initialization
@@ -38,5 +39,14 @@ public class FlockManager : MonoBehaviour
             return higher;
 
         return lower;
+    }
+
+    private void Update()
+    {
+        if (sheepInField.Equals(0))
+        {
+            gate.SetActive(true);
+            gate.GetComponent<BoxCollider>().enabled = true;
+        }
     }
 }

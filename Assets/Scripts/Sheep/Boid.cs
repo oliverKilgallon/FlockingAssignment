@@ -109,6 +109,10 @@ public class Boid : MonoBehaviour
                 Debug.DrawRay(transform.position, alignment, Color.green); // Alignment
             }
         }
+        else 
+        {
+            StartCoroutine(SlowDown());
+        }
     }
 
     // cohesion: steer to move toward the average position (center of mass) of local flockmates
@@ -230,6 +234,19 @@ public class Boid : MonoBehaviour
     {
         yield return new WaitForSeconds(2.0f);
         isHerded = true;
+    }
+
+    //Slows boid down when either in pen or no longer chased by player
+    public IEnumerator SlowDown()
+    {
+        Vector3 stopVector = new Vector3(0, 0, 0);
+        while (rb.velocity != stopVector)
+        {
+            rb.velocity -= new Vector3(0.1f ,0 ,0.1f);
+            if (rb.velocity.x < 0 || rb.velocity.z < 0)
+                rb.velocity = new Vector3(0, 0, 0);
+            yield return null;
+        }
     }
 }
 

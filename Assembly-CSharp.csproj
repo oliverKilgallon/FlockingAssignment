@@ -52,6 +52,7 @@
      <Compile Include="Assets\Scripts\Sheep\Boid.cs" />
      <Compile Include="Assets\Scripts\Sheep\FlockManager.cs" />
      <Compile Include="Assets\Scripts\Sheep\SheepCounter.cs" />
+     <Compile Include="Assets\UI_SheepCounter.cs" />
  <Reference Include="UnityEngine.UI">
  <HintPath>C:/Program Files/Unity/Editor/Data/UnityExtensions/Unity/GUISystem/UnityEngine.UI.dll</HintPath>
  </Reference>
