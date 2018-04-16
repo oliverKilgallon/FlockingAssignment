@@ -1,10 +1,12 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class Boid : MonoBehaviour
 {
 
     private GameObject[] flock;
+    private List<GameObject> bodyComponents;
     private Vector3 directionVector;
     private Vector3 sightLine;
     private Rigidbody rb;
@@ -26,7 +28,15 @@ public class Boid : MonoBehaviour
         flock = FlockManager.allBoids;
         directionVector = Vector3.zero;
         rb = gameObject.GetComponent<Rigidbody>();
-        GetComponent<MeshRenderer>().material.color = Color.green;
+        bodyComponents = new List<GameObject>();
+
+        foreach (Transform child in transform)
+        {
+            if (child.name.Equals("FluffyBody"))
+                bodyComponents.Add(child.gameObject);
+            else if (child.name.Equals("LittleFluffyBody"))
+                bodyComponents.Add(child.gameObject);
+        }
     }
 
     void Update()
@@ -38,29 +48,29 @@ public class Boid : MonoBehaviour
     public void Movement()
     {
         //Don't calculate vectors if far enough away from player
-        if ( ( Vector3.Distance( transform.position, FlockManager.goalTransform.position ) < minPlayerDist ) && isHerded )
+        if ((Vector3.Distance(transform.position, FlockManager.goalTransform.position) < minPlayerDist) && !isHerded)
         {
             Vector3 cohesion = Cohesion();
             Vector3 separation = Separation();
             Vector3 alignment = Alignment();
 
             //Combine previously calculated vectors, multiply them by their respective weights then normalize the vector
-            directionVector = ( (cohesion * cohesionWeight ) + ( separation * sepWeight ) + ( alignment * alignWeight ) );
+            directionVector = ((cohesion * cohesionWeight) + (separation * sepWeight) + (alignment * alignWeight));
             directionVector.Normalize();
 
             //Set boid velocity according to direction vector
-            rb.velocity = ( new Vector3( directionVector.x, 0, directionVector.z ) * speed);
+            rb.velocity = (new Vector3(directionVector.x, 0, directionVector.z) * speed);
 
             //Setup raycast properties
             RaycastHit hit;
             float shoulderMultiplier = 0.5f;
-            Vector3 leftRay = transform.position - ( transform.right * shoulderMultiplier );
-            Vector3 rightRay = transform.position + ( transform.right * shoulderMultiplier );
+            Vector3 leftRay = transform.position - (transform.right * shoulderMultiplier);
+            Vector3 rightRay = transform.position + (transform.right * shoulderMultiplier);
 
             //Left shoulder raycast
-            if ( Physics.Raycast( leftRay, transform.forward, out hit, raycastDistance ) )
+            if (Physics.Raycast(leftRay, transform.forward, out hit, raycastDistance))
             {
-                if ( hit.transform != transform && !hit.collider.gameObject.CompareTag( "Safe" ) )
+                if (hit.transform != transform && !hit.collider.gameObject.CompareTag("Safe"))
                 {
                     Debug.DrawLine(leftRay, hit.point, Color.red);
                     directionVector += hit.normal * 15.0f;
@@ -68,11 +78,11 @@ public class Boid : MonoBehaviour
             }
 
             //Right shoulder raycast
-            else if ( Physics.Raycast( rightRay, transform.forward, out hit, raycastDistance ) )
+            else if (Physics.Raycast(rightRay, transform.forward, out hit, raycastDistance))
             {
-                if ( hit.transform != transform && !hit.collider.gameObject.CompareTag( "Safe" ) )
+                if (hit.transform != transform && !hit.collider.gameObject.CompareTag("Safe"))
                 {
-                    Debug.DrawLine( leftRay, hit.point, Color.red );
+                    Debug.DrawLine(leftRay, hit.point, Color.red);
                     directionVector += hit.normal * 15.0f;
                 }
             }
@@ -80,23 +90,23 @@ public class Boid : MonoBehaviour
             //Show both when not "colliding"
             else
             {
-                Debug.DrawRay( leftRay, transform.forward * raycastDistance, Color.yellow );
-                Debug.DrawRay( rightRay, transform.forward * raycastDistance, Color.yellow );
+                Debug.DrawRay(leftRay, transform.forward * raycastDistance, Color.yellow);
+                Debug.DrawRay(rightRay, transform.forward * raycastDistance, Color.yellow);
             }
 
             //directionVector += separation;
 
-            Quaternion lookRot = Quaternion.LookRotation( directionVector );
+            Quaternion lookRot = Quaternion.LookRotation(directionVector);
             transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, 2.5f * Time.deltaTime);
 
             rb.velocity = transform.forward * speed;
 
             //Set boid to show specific vectors
-            if ( isDebugging )
+            if (isDebugging)
             {
-                Debug.DrawRay( new Vector3(0f, 0f, 0f), cohesion, Color.red ); // Cohesion
-                Debug.DrawRay( transform.position, separation, Color.blue ); // Separation
-                Debug.DrawRay( transform.position, alignment, Color.green ); // Alignment
+                Debug.DrawRay(new Vector3(0f, 0f, 0f), cohesion, Color.red); // Cohesion
+                Debug.DrawRay(transform.position, separation, Color.blue); // Separation
+                Debug.DrawRay(transform.position, alignment, Color.green); // Alignment
             }
         }
     }
@@ -195,16 +205,31 @@ public class Boid : MonoBehaviour
     //Only called when facing player in sheep's FOV
     public void BarkedAt()
     {
-        transform.rotation = Quaternion.LookRotation( -transform.forward, Vector3.up );
-        StartCoroutine( ColourBriefly() );
+        if (Vector3.Dot(transform.forward, (FlockManager.goalTransform.position - transform.position).normalized) > 0.7)
+        {
+            transform.rotation = Quaternion.LookRotation(-transform.forward, Vector3.up);
+            StartCoroutine(ColourBriefly());
+        }
     }
 
     //Flash to indicate the sheep was "scared"
     private IEnumerator ColourBriefly()
     {
-        GetComponent<MeshRenderer>().material.color = Color.red;
+        foreach (GameObject go in bodyComponents)
+            go.GetComponent<MeshRenderer>().material.color = Color.red;
+
         yield return new WaitForSeconds(0.2f);
-        GetComponent<MeshRenderer>().material.color = Color.green;
+
+        foreach (GameObject go in bodyComponents)
+            go.GetComponent<MeshRenderer>().material.color = Color.white;
+
+    }
+
+    //Used when the boid enters the goal area
+    public IEnumerator PenEntered()
+    {
+        yield return new WaitForSeconds(2.0f);
+        isHerded = true;
     }
 }
 

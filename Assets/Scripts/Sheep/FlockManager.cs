@@ -16,6 +16,7 @@ public class FlockManager : MonoBehaviour
 	// Use this for initialization
 	void Start ()
     {
+        goalTransform = goal.transform;
         sheepInField = 0;
         goalTransform = goal.transform;
         for (int i = 0; i < numBoids; i++)
@@ -26,10 +27,5 @@ public class FlockManager : MonoBehaviour
 
             allBoids[i] = Instantiate(boidPrefab, pos, Quaternion.identity);
         }
-	}
-
-    void Update()
-    {
-        goalTransform = goal.transform;
     }
 }

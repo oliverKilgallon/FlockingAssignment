@@ -10,6 +10,7 @@ public class SheepCounter : MonoBehaviour {
         {
             FlockManager.sheepInField++;
             Debug.Log(FlockManager.sheepInField + " Sheep");
+            StartCoroutine(other.GetComponent<Boid>().PenEntered());
         }
     }
 

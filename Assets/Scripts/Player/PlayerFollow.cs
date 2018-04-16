@@ -4,10 +4,14 @@ using UnityEngine;
 
 public class PlayerFollow : MonoBehaviour {
 
-    public GameObject player;
-	
+    public float MinFollowDist;
+
 	void Update ()
     {
-        transform.LookAt(player.transform);	
+        Vector2 playerDist = new Vector2(FlockManager.goalTransform.position.x - transform.position.x, FlockManager.goalTransform.position.z - transform.position.z);
+        if (playerDist.magnitude > MinFollowDist)
+        {
+            transform.position += new Vector3(playerDist.x / 15.0f, 0, playerDist.y / 15.0f);
+        }
 	}
 }
